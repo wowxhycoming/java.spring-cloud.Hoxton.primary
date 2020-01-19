@@ -278,12 +278,12 @@ info:
 
 > 访问 http://ip:37001/actuator/info 会提示下载文件，因为返回的是个流，用 google 浏览器可以适配。
 
-# 五、注册中心的高可用
+# 五、调整 客户端-注册中心 反馈时间
 
-## 前情回顾
+## 前情回顾 场景制造
 1. 在 三.5 章节的报错信息
 是因为没有配置高可用造成的。
-eureka-server 想获取其他服务实例，也想讲自己注册到 eureka-server 上，发现不可行。
+eureka-server 想获取其他服务实例，也想将自己注册到 eureka-server 上，发现不可行。
 
 2. 此时将唯一的 provider 下线，刷新 eureka 管理端，发现服务仍然存在于列表中。上面说了，是 eureka 的保护机制。
 
@@ -304,5 +304,28 @@ eureka:
     lease-renewal-interval-in-seconds: 2 # 设置心跳时间间隔，默认30s
     lease-expiration-duration-in-seconds: 5 # 超过5s没有心跳，开始清理，默认90s
 ```
-2s 一个心跳，5s 清理明显不合理，体验一下，看下心跳的debug日志，然后注释掉。
+2s 一个心跳，5s 清理服务列表明显不合理，这里只是体验一下。看下心跳的debug日志，然后注释掉。
+
+## 关于 eureka
+
+还有 注册中心高可用、安全机制 等。目前先到这里，以后在合适的场景补充。
+
+# 六、Ribbon 和 RestTemplate
+
+## RestTemplate
+
+是 spring 提供的一种简单便捷的模板类来进行 Http 操作
+
+## 关于Ribbon 
+
+1. 是一个 http、tcp 负载均衡
+2. 需要连接到注册中心，下载服务列表到本地，之后才可负载均衡
+3. eureka-client 依赖了 ribbon ，所以项目不需要显示引用 ribbon
+
+
+## ribbon 的使用
+
+添加 eureka-client 依赖 -> 配置注册中心 -> 启动类添加 eureka-client注解 -> RestTemplate 头顶 @Balance
+
+
 
