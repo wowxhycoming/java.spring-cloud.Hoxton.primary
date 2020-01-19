@@ -1,0 +1,23 @@
+server:
+  port: 37001
+spring:
+  application:
+    name: provider-movie
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:35001/eureka
+  instance:
+    # 应用名 会影响消费者调用，使用spring.application.name
+    # app name: provider-movie
+    # 应用列表中 每个实例的名字
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}
+    # 鼠标放到应用列表的实例上，状态类中的地址信息指定为ip
+    prefer-ip-address: true
+    #lease-renewal-interval-in-seconds: 2 # 设置心跳时间间隔，默认30s
+    #lease-expiration-duration-in-seconds: 5 # 超过5s没有心跳，开始清理，默认90s
+info:
+  app.name: provider-movie
+  compony.name: me.xhy
+  build.artifactId: $project.artifactId$
+  build.modelVersion: $project.modelVersion$

@@ -1,0 +1,15 @@
+server:
+  port: 35001
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    registerWithEureka: false # 是否从 eureka 获取信息
+    fetchRegistry: false # 是否注册到 eureka
+  server:
+    eviction-interval-timer-in-ms: 1000 # 设置清理的时间间隔，单位是 ms ，默认值 60000ms(60s)
+
+spring:
+  application:
+    name: eurka-server
