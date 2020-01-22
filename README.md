@@ -425,8 +425,8 @@ public class MovieConsumerRibbonApplication {
 
 ```
 @RestController
-@RequestMapping("movie")
-public class MovieController {
+@RequestMapping("/consumer/ribbon/movie")
+public class MovieRibbonController {
 
   @Autowired
   RestTemplate restTemplate;
@@ -442,7 +442,7 @@ public class MovieController {
 
 第二个 MovieController 了，注意区分角色，这个是 consumer，上一个是 provider。
 
-5. 访问消费者页面 `http://localhost:33001/movie/movies`
+5. 访问消费者页面 `http://localhost:33001/consumer/ribbon/movie/movies`
 
 ## 因为目前还没有高可用环境，说好的负载均衡要等高可用环境完善后才会露头
 
@@ -701,19 +701,151 @@ public class MovieController {
 前面的准备工作做好后，直接启动 `MovieConsumerRibbonApplication` ，访问他的资源页面 `http://localhost:33001/movie/movies` ，不停的刷新浏览器，体验 Ribbon 默认负载均衡策略 `RoundRobinRule` 带来的乐趣。
 
 
+## Ribbon 负载均衡策略
+
+- RoundRobinRule  
+轮询策略。Ribbon默认采用的策略。
+
+- RandomRule  
+随机策略，从所有可用的provider中随机选择一个。
+
+- RetryRule  
+先按照RoundRobinRule策略获取provider，若获取失败，则在指定的时限内重试。默认的时限为500毫秒。
+
+- BestAvailableRule  
+选择并发量最小的provider，即连接的消费者数量最少的provider
+
+- AvailabilityFilteringRule  
+过滤掉处于断路器跳闸状态的provider，或已经超过连接极限的provider，对剩余provider采用轮询策略。
+（1）在默认情况下，这台服务器如果3次连接失败，这台服务器就会被设置为“短路”状态。短路状态将持续30秒，如果再次连接失败，短路的持续时间就会几何级地增加。
+
+注意：可以通过修改配置loadbalancer.<clientName>.connectionFailureCountThreshold来修改连接失败多少次之后被设置为短路状态。默认是3次。
+
+（2）并发数过高的服务器。如果一个服务器的并发连接数过高，配置了AvailabilityFilteringRule规则的客户端也会将其忽略。并发连接数的上线，可以由客户端的<clientName>.<clientConfigNameSpace>.ActiveConnectionsLimit属性进行配置。
+
+- ZoneAvoidanceRule  
+复合判断provider所在区域的性能及provider的可用性选择服务器。
+
+- WeightedResponseTimeRule  
+“权重响应时间”策略。根据每个provider的平均响应时间计算其权重，响应时间越快权重越大，被选中的机率就越高。在刚启动时采用轮询策略。后面就会根据权重进行选择
+
+## Ribbon 负载均衡策略的修改
+
+## Ribbon 负载均衡策略的范围
 
 
+# 八、Feign
+
+## 关于 Feign
+
+Feign是一个声明式的伪Http客户端，它使得 Http 客户端编码变得更简单。使用Feign，只需要创建一个接口并注解。它具有可插拔的注解特性，可使用Feign 注解和 JAX-RS 注解。Feign 支持可插拔的编码器和解码器。Feign 默认集成了 Ribbon，自然就实现了负载均衡的效果。
+
+## 使用 Feign
+
+1. 创建一个新模块 `spring-cloud.s4.movie-consumer-feign`
+2. 在 pom 中添加依赖
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-openfeign</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+  </dependencies>
+```
+3. 添加配置文件
+
+application.yml
+```
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+  instance:
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+server:
+  port: 33002
+spring:
+  application:
+    name: movie-consumer-feign
+```
 
 
+4. 创建启动类 `MovieConsumerFeignApplication`
+```
+/*
+@EnableFeignClients 开启 feign
+ */
+@SpringBootApplication
+@EnableEurekaClient
+@EnableDiscoveryClient
+@EnableFeignClients
+public class MovieConsumerFeignApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(MovieConsumerFeignApplication.class, args);
+  }
+}
 
+```
 
+5. 使用 feign ， 创建 `MovieFeignService`
 
+```
+/*
+@FeignClient("") 参数填 Spring Cloud Provider 的应用名 ${spring.application.name}
+回想一下 Ribbon 放问资源的 Http地址： String GET_MOVIES = "http://movie-provider/movie/movies";
+ */
+@FeignClient("movie-provider")
+public interface MovieFeignService {
 
+  /*
+  @RequestMapping() 默认参数是请求资源的地址，
+  也可以指定请求的 Http Method @RequestMapping(value="/movie/movies",method=RequestMethod.GET)
 
+  getMovies() 也可以算入参数，例如 getMovies(@RequestParam("name") String name) ，调用时比如传入的参数
+   */
+  @RequestMapping("/movie/movies")
+  public String getMovies();
+}
+```
 
+这样就写好了，再写一个 Controller 调用这个 service，并且提供用户访问入口
 
+6. 创建 `MovieFeignController`
+```
+@RestController
+@RequestMapping("/consumer/feign/movie")
+public class MovieFeignController {
 
+  /*
+  引入刚写好的接口。这里不再试 Ribbon 的 RestTemplate 。
+  较新版本的 Intellij 不会再报无法注入、找不到匹配类型的 编译 错误了
+   */
+  @Autowired
+  MovieFeignService movieFeignService;
 
+  @RequestMapping("movies")
+  public String getMovies() {
+    return movieFeignService.getMovies();
+  }
+}
+```
+
+7. 起动项目、访问、刷新
+```
+http://localhost:33002/consumer/feign/movie/movies
+```
+依然支持负载均衡，完美 ...|.  .|...  
 
 
 

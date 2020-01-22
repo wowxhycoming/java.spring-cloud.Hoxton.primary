@@ -40,6 +40,7 @@
     <module>spring-cloud.s1.eureka-server</module>
     <module>spring-cloud.s2.movie-provider</module>
     <module>spring-cloud.s3.movie-consumer-ribbon</module>
+    <module>spring-cloud.s4.movie-consumer-feign</module>
   </modules>
 
   <build>

@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
 @RestController
-@RequestMapping("movie")
-public class MovieController {
+@RequestMapping("/consumer/ribbon/movie")
+public class MovieRibbonController {
 
   @Autowired
   RestTemplate restTemplate;

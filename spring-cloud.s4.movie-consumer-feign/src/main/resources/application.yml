@@ -1,0 +1,14 @@
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+  instance:
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+server:
+  port: 33002
+spring:
+  application:
+    name: movie-consumer-feign
