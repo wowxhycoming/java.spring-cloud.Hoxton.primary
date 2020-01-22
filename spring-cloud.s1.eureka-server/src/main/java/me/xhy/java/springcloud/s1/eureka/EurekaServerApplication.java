@@ -16,6 +16,9 @@ spring-boot 注解，相当于 @Configuration + @EnableAutoConfiguration + @Comp
 @EnableEurekaServer
 public class EurekaServerApplication {
   public static void main(String[] args) {
-    SpringApplication.run(EurekaServerApplication.class);
+    /*
+    启动参数一定要加 `args` ，以后命令行传参就是靠这个变量
+     */
+    SpringApplication.run(EurekaServerApplication.class, args);
   }
 }

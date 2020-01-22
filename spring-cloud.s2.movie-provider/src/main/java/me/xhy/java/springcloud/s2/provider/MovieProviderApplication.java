@@ -1,4 +1,4 @@
-package me.xhy.java.springcloud.s2.provider.movie;
+package me.xhy.java.springcloud.s2.provider;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -11,6 +11,6 @@ import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
 @EnableEurekaClient
 public class MovieProviderApplication {
   public static void main(String[] args) {
-    SpringApplication.run(MovieProviderApplication.class);
+    SpringApplication.run(MovieProviderApplication.class, args);
   }
 }

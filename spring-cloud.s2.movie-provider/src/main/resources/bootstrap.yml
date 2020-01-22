@@ -1,0 +1,6 @@
+spring:
+  profiles:
+    active: dev # 表示激活 application-test 配置文件
+
+## eureka 集群启动命令行中 spring.profiles.active=test
+## eureka 单点启动命令行中 spring.profiles.active=dev

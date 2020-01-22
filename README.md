@@ -1,7 +1,7 @@
 # 一、开始
 
 1. 鉴于目前对微服务的认知，按大致如下顺序展开： 注册中心、 provider 、 consumer 、 集群、 负载均衡、 容错。
-2. 本项目使用 spring-cloud 的版本为 Hoxton.SR1， 当前时间 2020.01.18 。
+2. 本项目使用 spring-cloud 的版本为 Hoxton.RELEASE， 当前时间 2020.01.18 。
 3. 基于 spring-boot 构建项目， 查看 spring-cloud 和 spring-boot 版本的对应 https://start.spring.io/actuator/info
 4. jdk version 1.8
 5. 项目 和 子模块均是 maven 项目。
@@ -11,7 +11,7 @@
 
 # 二、创建根项目
 
-1. 新建 maven 项目： java.spring-cloud.Hoxton
+1. 新建 maven 项目： `java.spring-cloud.Hoxton`
 
 2. pom 文件添加 properties
 ```
@@ -30,6 +30,13 @@ Supported Boot Version: 2.2.1.RELEASE
 确定版本，如下：
 
 ```
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.2.1.RELEASE</version>
+    <relativePath/>
+  </parent>
+  
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -39,18 +46,12 @@ Supported Boot Version: 2.2.1.RELEASE
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-dependencies</artifactId>
-        <version>2.2.1.RELEASE</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
   </dependencyManagement>
 ```
 
 > maven 与 java 在继承方面的定义一样，都是单继承。单独使用 spring-boot 时候，可以使用 parent 标签继承 spring-boot 的 pom 文件，但是想继承多个 pom 是不可能的。 <scope>import</scope> 用于解决这个问题。
+
+> 这里采用继承 `spring-boot-starter-parent` ，引入 `spring-cloud-dependencies` 。 `spring-boot-starter-parent` 中有很多写好的插件、构建等可以直接拿来用，因为 spring cloud 也是基于 spring boot 封箱的。 可以跟踪到引入的 pom 中看看都有什么。
 
 > 另外，根项目只需要 使用 dependencyManagement 预定义 dependencies 即可，严禁使用 dependencies ，此时项目下 lib 库仍然没包含任何 jar。子项目按需引入。
 
@@ -59,7 +60,7 @@ Supported Boot Version: 2.2.1.RELEASE
 
 本项目将使用伪集群方式部署 eureka-server 。
 
-1. 模块名称 spring-cloud.s1.eureka-server (s1 表示 step1)
+1. 模块名称 `spring-cloud.s1.eureka-server` (s1 表示 step1)
 
 2. 修改 pom 文件
 ```
@@ -71,7 +72,7 @@ Supported Boot Version: 2.2.1.RELEASE
   </dependencies>
 ```
 
-3. 创建启动类 me.xhy.java.springcloud.s1.eureka.EurekaServer
+3. 创建启动类 `me.xhy.java.springcloud.s1.eureka.EurekaServer`
 
 ```
 /*
@@ -87,7 +88,10 @@ spring-boot 注解，相当于 @Configuration + @EnableAutoConfiguration + @Comp
 @EnableEurekaServer
 public class EurekaServerApplication {
   public static void main(String[] args) {
-    SpringApplication.run(EurekaServerApplication.class);
+    /*
+    启动参数一定要加 `args` ，以后命令行传参就是靠这个变量
+     */
+    SpringApplication.run(EurekaServerApplication.class, args);
   }
 }
 ```
@@ -109,8 +113,7 @@ spring:
     name: eurka-server
 ```
 
-通过 eureka.client.registerWithEureka: false 和 fetchRegistry: false 来表明自己是一个eureka server.
-
+通过 `eureka.client.registerWithEureka`: false 不向服务中心注册 和 `eureka.client.fetchRegistry`: false 不获取服务列表，来表明自己是一个 eureka server.
 
 5. 启动工程
 
@@ -120,7 +123,9 @@ spring:
 
 6. 访问
 
-访问 http://localhost:35001/ 。
+访问 `http://localhost:35001/` 。
+
+> 可不是 `http://localhost:35001/eureka`
 
 此时还没有服务注册到 eureka ，"Instances currently registered with Eureka" 区域显示 "No instances available" 。
  
@@ -133,7 +138,7 @@ Eureka server 从每个 client 实例接收心跳消息。
 
 ## 创建模块
 
-1. 模块名称 spring-cloud.s2.provider-movie
+1. 模块名称 `spring-cloud.s2.movie-provider`
 
 2. 修改 pom
 ```
@@ -169,21 +174,24 @@ public class MovieProviderApplication {
 4. 创建配置文件，指定注册中心地址
 ```
 server:
-  port: 10002
+  port: 37001 # 服务端口
 spring:
   application:
-    name: provider-movie
+    name: movie-provider # 应用名称
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:35001/eureka
   instance:
-    # 应用名 会影响消费者调用，使用spring.application.name
-    # appname: provider-movie
-    # 应用列表中 每个实例的名字
-    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}
-    # 鼠标放到应用列表的实例上，状态类中的地址信息指定为ip
-    prefer-ip-address: true
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name} # 代表了一个启动示例的标识，自定义，可以显示在控制台上，
+    prefer-ip-address: true # 调用服务的时候使用 IP 优先，而不是使用域名。鼠标放到应用列表的实例上，状态类中的地址信息指定为 ip。
+    lease-renewal-interval-in-seconds: 30 # 表示 eureka client 发送心跳给server端的频率。这个值决定了服务注册的快慢，太快消耗资源。默认30秒。
+    lease-expiration-duration-in-seconds: 90 # 表示 eureka server 至上一次收到 client 的心跳之后，等待下一次心跳的超时时间，在这个时间内若没收到下一次心跳，则将移除该 instance。默认90秒
+info:
+  app.name: movie-provider
+  compony.name: me.xhy
+  build.artifactId: $project.artifactId$
+  build.modelVersion: $project.modelVersion$
 ```
 
 > spring.application.name 的设置是为了让 "Application" 处可以正常显示应用名，而不是 UNKNOWN。
@@ -245,13 +253,16 @@ info:
 3. 修改根项目 pom 文件，添加插件
 ```
   <build>
-    <finalName>java.spring-cloud.Hoxton</finalName>
     <resources>
       <resource>
         <directory>src/main/resources</directory>
         <filtering>true</filtering>
+        <excludes>
+          <exclude>*.bat</exclude>
+        </excludes>
       </resource>
     </resources>
+    
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -277,6 +288,30 @@ info:
 重新运行，再访问。
 
 > 访问 http://ip:37001/actuator/info 会提示下载文件，因为返回的是个流，用 google 浏览器可以适配。
+
+## 服务提供者还没有实质性的服务，添加一个
+
+1. 创建业务类 `..MovieController.java` 
+
+```
+/*
+@RestController = @ResponseBody +  @Controller
+该视图解析器直接返回字符串
+ */
+@RestController
+@RequestMapping("movie")
+public class MovieController {
+  @RequestMapping("movies")
+  public String getMovies() {
+    return "movies";
+  }
+}
+```
+
+2. 重启 movie-provider 访问 `localhost:37001/movie/movies` ， 页面显示字面量 `moives` 。
+
+
+到此，服务提供者可以对外提供服务了。
 
 # 五、调整 客户端-注册中心 反馈时间
 
@@ -312,11 +347,11 @@ eureka:
 
 # 六、Ribbon 和 RestTemplate
 
-## RestTemplate
+## 关于RestTemplate
 
 是 spring 提供的一种简单便捷的模板类来进行 Http 操作
 
-## 关于Ribbon 
+## 关于Ribbon
 
 1. 是一个 http、tcp 负载均衡
 2. 需要连接到注册中心，下载服务列表到本地，之后才可负载均衡
@@ -325,7 +360,413 @@ eureka:
 
 ## ribbon 的使用
 
-添加 eureka-client 依赖 -> 配置注册中心 -> 启动类添加 eureka-client注解 -> RestTemplate 头顶 @Balance
+添加 eureka-client 依赖 -> 配置文件：注册中心 -> 启动类添加 eureka-client 注解 -> 启动类头顶 @EnableDiscoveryClient、RestTemplate 头顶 @LoadBalance
+
+1. 新建模块 `spring-cloud.s3.movie-consumer-ribbon` 
+
+2. 在 pom 中添加依赖： eureka-client 、 ribbon 、 还要提供 web 服务
+
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-ribbon</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+  </dependencies>
+```
+
+3. 添加配置文件
+
+```
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+  instance:
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+server:
+  port: 33001
+spring:
+  application:
+    name: movie-consumer-ribbon
+```
+
+4. 创建启动类 `...MovieConsumerRibbonApplication.java`
+
+```
+@SpringBootApplication
+@EnableEurekaClient
+@EnableDiscoveryClient
+public class MovieConsumerRibbonApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(MovieConsumerRibbonApplication.class);
+  }
+
+  @Bean
+  @LoadBalanced
+  RestTemplate restTemplate() {
+    return new RestTemplate();
+  }
+}
+```
+
+5. 创建消费者入口， `..MovieController`
+
+```
+@RestController
+@RequestMapping("movie")
+public class MovieController {
+
+  @Autowired
+  RestTemplate restTemplate;
+
+  @RequestMapping("movies")
+  public String getMovies() {
+    // 使用 服务名 代替BASE URL ，后面正常接 资源路径
+    String GET_MOVIES = "http://movie-provider/movie/movies";
+    return GET_MOVIES + " == " + restTemplate.getForObject(GET_MOVIES, String.class);
+  }
+}
+```
+
+第二个 MovieController 了，注意区分角色，这个是 consumer，上一个是 provider。
+
+5. 访问消费者页面 `http://localhost:33001/movie/movies`
+
+## 因为目前还没有高可用环境，说好的负载均衡要等高可用环境完善后才会露头
+
+
+# 七、Eureka 、 Provider 的高可用环境搭建； Ribbon 的负载均衡的应用
+
+## 先聊一下 Spring 加载配置（此处没有'文件'两字）的优先级
+
+1. spring boot 加载项目内部配置文件 *路径* 的优先级
+- 工程根目录:./config/
+- 工程根目录：./
+- classpath:/config/
+- classpath:/
+
+加载优先级是 从上到下，并且每个配置文件都会加载，用高优先级覆盖低优先级，按互补形式覆盖。
+
+> classpath 就是 maven 项目中的 java 和 resource  目录。
+
+2. spring boot 加载 *外部* 配置文件的优先级
+- 优先加载 *jar 外部* 的配置文件
+
+> \-folder  
+    |- application.yml  
+    |- xxx-application.jar
+
+3. 有限加载名称为 bootstrap 配置文件，其次加载名称为 application 的配置文件。
+
+- bootstrap.yml
+- application.yml
+
+4. 优先加载带 [-profile] 的配置文件
+
+先加载带 profile 的
+- jar外部的 application-prod.yml
+- jar内部的 application-prod.yml
+
+再加载不带 profile 的
+- jar外部的 application.yml
+- jar内部的 application.yml
+
+
+## 配置文件接收命令行参数
+
+1. 新增 bootstrap.yml
+在每个子模块中加入一个新的配置文件， `bootstrap.yml` ， 该配置文件可以指定使用哪个 `profile` 的配置文件，也可以接收命令行参数
+
+```
+spring:
+  profiles:
+    active: dev # 表示激活 application-dev 配置文件
+```
+
+
+
+## 程序打包
+
+1. 修改根 pom 文件，增加打包方式
+
+```
+...
+
+  <build>
+      ...
+      
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+
+    </plugins>
+  </build>
+
+</project>
+```
+
+
+## Eureka 的高可用 - 打jar包方式
+
+高可用就意味着多个实例，单机将使用伪集群——host 相同，port 不同。 用多个命令行启动相同 jar ，利用命令行的优先级，传入不同的 port 即可。
+
+1. 给 `maven-resources-plugin` 插件添加拷贝配置文件的配置
+
+在项目根 pom 中更改 `maven-resources-plugin` 插件，加 `<!-- resource copy-->` 配置：
+```
+      <plugin>
+        <!-- analyze placeholder -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <configuration>
+          <delimiters>
+            <delimiter>$</delimiter>
+          </delimiters>
+        </configuration>
+        <!-- resource copy-->
+        <executions>
+          <execution>
+            <id>copy-resources</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>src/main/resources</directory>
+                  <filtering>true</filtering>
+                  <excludes>
+                    <exclude>*.bat</exclude>
+                  </excludes>
+                </resource>
+              </resources>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+```
+
+这样 resource 下的配置文件在都会被拷贝到 target 下。
+
+2. 使用 spring cloud 的 bootstrap.yml 配置文件
+- 新建配置文件 application-dev.yml， 这个配置文件使用单点 注册中心
+```
+server:
+  port: 35001
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    registerWithEureka: false # 是否从 eureka 获取信息
+    fetchRegistry: false # 是否注册到 eureka
+  server:
+    eviction-interval-timer-in-ms: 60000 # 设置清理的时间间隔，单位是 ms ，默认值 60000 ms(60s)
+
+spring:
+  application:
+    name: eurka-server
+```
+- 新建配置文件 application-test.yml， 这个配置文件使用集群 注册中心
+```
+server:
+  port: 35031
+
+eureka:
+  instance:
+    hostname: localhost
+    instance-id: ${spring.application.name}@${spring.cloud.client.ip-address}:${server.port}
+  client:
+    registerWithEureka: true # 是否从 eureka 获取信息
+    fetchRegistry: true # 是否注册到 eureka
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/,http://localhost:35002/eureka/,http://localhost:35003/eureka/
+  server:
+    eviction-interval-timer-in-ms: 60000 # 设置清理的时间间隔，单位是 ms ，默认值 60000 ms(60s)
+
+spring:
+  application:
+    name: eurka-server
+```
+
+3. 添加 bootstrap.yml 配置文件， 并激活 `test` 为 test 的配置文件
+```
+spring:
+  profiles:
+    active: test # 表示激活 application-test 配置文件
+```
+
+4. resource 目录下增加启动脚本，当前是 windows 环境，.bat 文件的内容：
+```
+java -jar spring-cloud.s1.eureka-server-1.0-SNAPSHOT.jar --spring.profiles.active=test --server.port=35001
+java -jar spring-cloud.s1.eureka-server-1.0-SNAPSHOT.jar --spring.profiles.active=test --server.port=35002
+java -jar spring-cloud.s1.eureka-server-1.0-SNAPSHOT.jar --spring.profiles.active=test --server.port=35003
+```
+这里一共给出3个 .bat 文件的内容，一个文件分别取一行，分别执行，实现伪集群。
+
+> Intellij IDEA 环境下，在插件仓库搜索 "cmd" ，安装插件，在IDE中即可直接运行 .bat 文件。
+
+> 当前环境下，注册中心没必要高可用。
+
+
+## Eureka 的高可用 - Intellij Multi Application
+
+1. 打开程序运行配置 Edit Configuration..
+2. 拷贝  在"Spring Boot" 下找到名为 "EurekaServerApplication" 的程序，复制3份， 可以点图标，或者使用默认快捷键 `Ctrl+d`。
+3. 对这3个新得到的启动，分别配置 JVM 参数 "Program arguments" 
+```
+--spring.profiles.active=test --server.port=35001
+--spring.profiles.active=test --server.port=35002
+--spring.profiles.active=test --server.port=35003
+```
+
+现在有两种方式可以构建高可用环境了。另外还规定了本地环境的 `profile` 用途， `dev` 为单点环境， `test` 为高可用环境。 还可以定义 `quasi` 之类的，来满足想要的用途。
+
+4. 启动验证一下
+
+> 大多数开发场景下， eureka 都使用单点方式启动。下面不特殊说明的，都是使用单点启动。
+
+## Provider 的高可用
+
+1. 套路与 Eureka 的高可用相同。
+
+2. 注册中心集群了，声明注册中心的地方就需要更改了。更改每个 EurekaClient 的配置文件：
+
+```
+defaultZone: http://localhost:35001/eureka/,http://localhost:35002/eureka/,http://localhost:35003/eureka/
+```
+
+3. 配置文件规划
+针对 eureka 的单点部署 和 集群部署， provider 也要有两套配置，所以，也用 `profile` 解决吧。例如：调试业务功能的时候用 `-dev` 启动一个点就行； 调试负载策略的时候用 `-test` 启动多个点。
+
+4. 要想能看出负载均衡的效果，provider 还要做些改动，至少每个点的返回信息不同，才可以更直观看出效果，正好每个应用的端口号是唯一的...  
+
+创建 `ServerPortConfiguration` ，来获取应用启动端口
+```
+@Component
+public class ServerPortConfiguration implements ApplicationListener<WebServerInitializedEvent> {
+
+  private int serverPort;
+
+  @Override
+  public void onApplicationEvent(WebServerInitializedEvent event) {
+    this.serverPort = event.getWebServer().getPort();
+  }
+
+  public int getPort() {
+    return this.serverPort;
+  }
+
+}
+```
+
+MovieControll 修改：
+
+```
+@RestController
+@RequestMapping("movie")
+public class MovieController {
+
+  @Autowired
+  ServerPortConfiguration serverPortConfiguration;
+
+  @RequestMapping("movies")
+  public String getMovies() {
+    return "movies" + serverPortConfiguration.getPort();
+  }
+}
+```
+
+至此，所有准备都已做完。
+
+> 这时，你 IDEA 里面的执行程序们看起来可能有些乱，作者自己的规律是，执行程序名后接 "-序号" 来标记这是集群工作环境的应用，并且只有这些带序号的应用 才有传入参数，他们的 profile 都是 test ， 端口各异。 默认执行程序，名称里不带 "-序号" ， 也没有命令行参数传入， bootstrap 中指定的 profile 为 `dev` 。
+
+## Ribbon 的负载均衡 - 默认策略
+
+前面的准备工作做好后，直接启动 `MovieConsumerRibbonApplication` ，访问他的资源页面 `http://localhost:33001/movie/movies` ，不停的刷新浏览器，体验 Ribbon 默认负载均衡策略 `RoundRobinRule` 带来的乐趣。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -1,0 +1,1 @@
+java -jar spring-cloud.s1.eureka-server-1.0-SNAPSHOT.jar --spring.profiles.active=test --server.port=35003

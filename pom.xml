@@ -17,6 +17,13 @@
     <maven.compiler.target>1.8</maven.compiler.target>
   </properties>
 
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.2.4.RELEASE</version>
+    <relativePath/>
+  </parent>
+
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -26,32 +33,29 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-dependencies</artifactId>
-        <version>2.2.1.RELEASE</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
-
   <modules>
     <module>spring-cloud.s1.eureka-server</module>
-    <module>spring-cloud.s2.provider-movie</module>
+    <module>spring-cloud.s2.movie-provider</module>
+    <module>spring-cloud.s3.movie-consumer-ribbon</module>
   </modules>
 
   <build>
-    <finalName>java.spring-cloud.Hoxton</finalName>
     <resources>
       <resource>
         <directory>src/main/resources</directory>
         <filtering>true</filtering>
+        <excludes>
+          <exclude>*.bat</exclude>
+        </excludes>
       </resource>
     </resources>
+
     <plugins>
       <plugin>
+        <!-- analyze placeholder -->
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
         <configuration>
@@ -59,6 +63,30 @@
             <delimiter>$</delimiter>
           </delimiters>
         </configuration>
+        <!-- resource copy-->
+        <executions>
+          <execution>
+            <id>copy-resources</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>src/main/resources</directory>
+                  <filtering>true</filtering>
+                  <includes>
+                    <!--<exclude>*.properties</exclude>
+                    <exclude>*.yml</exclude>-->
+                    <exclude>*.bat</exclude>
+                  </includes>
+                </resource>
+              </resources>
+              <outputDirectory>${project.build.directory}</outputDirectory>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -68,8 +96,14 @@
           <target>${java.version}</target><!-- 需要生成的目标class文件的编译版本 -->
         </configuration>
       </plugin>
+
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+
+
     </plugins>
   </build>
-
 
 </project>

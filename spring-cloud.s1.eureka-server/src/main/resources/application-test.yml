@@ -1,0 +1,18 @@
+server:
+  port: 35031
+
+eureka:
+  instance:
+    hostname: localhost
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+  client:
+    registerWithEureka: true # 是否从 eureka 获取信息
+    fetchRegistry: true # 是否注册到 eureka
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/,http://localhost:35002/eureka/,http://localhost:35003/eureka/
+  server:
+    eviction-interval-timer-in-ms: 60000 # 设置清理的时间间隔，单位是 ms ，默认值 60000 ms(60s)
+
+spring:
+  application:
+    name: eurka-server
