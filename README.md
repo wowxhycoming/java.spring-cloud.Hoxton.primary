@@ -845,19 +845,146 @@ public class MovieFeignController {
 ```
 http://localhost:33002/consumer/feign/movie/movies
 ```
-依然支持负载均衡，完美 ...|.  .|...  
+依然支持负载均衡。
 
 
+# 九、Hystrix 熔断器
+
+## 关于 Hystrix
+
+由于 Provider 可能出现宕机或网络不可达等原因，造成服务不可用，那么调用这个故障服务的线程就会被阻塞，若访问量很大，会导致请求网络资源的线程耗尽（HttpClient 线程池、 Servlet 容器等），出现这种情况，故障就发生了传播，会引发连锁反应，造成系统大面积崩溃。熔断器就是为了解决这类问题的。
+
+## Ribbon + RestTemplate 的 Hystrix 使用
+
+1. 创建模块 `spring-cloud.s5.movie-consumer-hystrix`
+2. pom 文件引入
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-ribbon</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-openfeign</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+  </dependencies>
+```
+3. 配置文件
+```
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+  instance:
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+server:
+  port: 33003
+spring:
+  application:
+    name: movie-consumer-hystrix
+```
+
+4. 启动类 `MovieConsumerHystrixApplication`
+
+```
+@SpringBootConfiguration
+@EnableEurekaClient
+@EnableDiscoveryClient
+@EnableHystrix
+public class MovieConsumerHystrixApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(MovieConsumerHystrixApplication.class, args);
+  }
+}
+```
+
+5. 启动 `MovieConsumerHystrixApplication` 的 `main` 函数，访问 `http://localhost:33003/consumer/hystrix/ribbon/movie/movies` 还是熟悉的负载均衡效果。 
+
+然后将 provider 中停掉一个 server 。继续刷新页面，当访问到那个宕机资源的 3 次报错后，该点将被踢出集群。
+
+该点重新上线，又会恢复到负载均衡列表中。
 
 
+## Feign 的 Hystrix 使用
 
+1. 配置文件：
 
+Feign 自带熔断器，默认是关闭的。需要在配置文件中配置开启
 
+```
+feign:
+  hystrix:
+    enabled: true
+```
 
+2. 在配置类补充一个注解
 
+```
+@EnableFeignClients // Feign 需要
+```
 
+3. 创建 Feign 接口 `MovieHystrixFeignService`
 
+```
+/*
+Feign 的熔断，只需要在原有注解中，增加 fallback 属性，该属性需要一个 class 类型值
+传入的 class 需要实现接口中的方法，供资源部可达时使用，
+ */
+@FeignClient(value = "movie-provider", fallback = FallbackGetMovies.class)
+public interface MovieHystrixFeignService {
 
+  @RequestMapping("/movie/movies")
+  public String getMovies();
+
+}
+
+/*
+该类提供资源部可达时的补偿方法
+必须要有 @Component ， 可以是外部类
+ */
+@Component
+class FallbackGetMovies implements MovieHystrixFeignService{
+  @Override
+  public String getMovies() {
+    return "feign method getMovies occur hystrix";
+  }
+}
+```
+
+4. 创建入口 `@RestController`
+
+```
+@RestController
+@RequestMapping("/consumer/hystrix/feign/movie")
+public class MovieHystrixFeignController {
+
+  @Autowired
+  MovieHystrixFeignService movieHystrixFeignService;
+
+  @RequestMapping("movies")
+  public String getMovies() {
+    return movieHystrixFeignService.getMovies();
+  }
+}
+```
+
+5. 访问 `http://localhost:33003/consumer/hystrix/feign/movie/movies` ，然后关闭一个 provider 测试熔断效果。
 
 
 

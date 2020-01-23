@@ -1,4 +1,4 @@
-package me.xhy.java.springcloud.s5.movie.consumer.hystrix.ribbon.controller;
+package me.xhy.java.springcloud.s5.movie.consumer.hystrix.s1ribbon.controller;
 
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import org.springframework.beans.factory.annotation.Autowired;

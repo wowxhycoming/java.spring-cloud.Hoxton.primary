@@ -12,3 +12,6 @@ eureka:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 30
     lease-expiration-duration-in-seconds: 90
+feign:
+  hystrix:
+    enabled: true

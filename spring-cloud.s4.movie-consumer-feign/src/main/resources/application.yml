@@ -11,4 +11,4 @@ server:
   port: 33002
 spring:
   application:
-    name: movie-consumer-feign
+    name: movie-consumer-s2feign
