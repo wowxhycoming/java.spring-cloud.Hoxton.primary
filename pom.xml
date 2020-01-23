@@ -41,6 +41,7 @@
     <module>spring-cloud.s2.movie-provider</module>
     <module>spring-cloud.s3.movie-consumer-ribbon</module>
     <module>spring-cloud.s4.movie-consumer-feign</module>
+    <module>spring-cloud.s5.movie-consumer-hystrix</module>
   </modules>
 
   <build>
