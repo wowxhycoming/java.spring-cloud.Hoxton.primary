@@ -16,7 +16,7 @@ public class MovieHystrixRibbonController {
   /*
     新增了 @HystrixCommand
     @HystrixCommand(fallbackMethod = "getMoviesError") 默认键为 fallbackMethod
-    表示当调用 provider ，调用的补偿（快速失败）方法
+    表示当调用 provider 失败，调用的补偿方法
     默认情况下，发生3次错误（补偿方法调用了3次），该 provider 将被熔断
     当被熔断的 provider 重新上线，将被重新加回到服务列表
   */
