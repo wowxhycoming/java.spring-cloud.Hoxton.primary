@@ -1,0 +1,12 @@
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+turbine:
+  app-config: movie-provider #, another-provider  用逗号分隔需要监控的服务
+  aggregator:
+    clusterConfig: default
+  clusterNameExpression: new String("default")
+  instanceUrlSuffix:
+    default: actuator/hystrix.stream
+  combine-host-port: true

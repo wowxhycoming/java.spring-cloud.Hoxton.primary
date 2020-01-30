@@ -1121,7 +1121,7 @@ server:
   port: 37001 # 服务端口
 spring:
   application:
-    name: movie-provider-hystrix # 应用名称
+    name: movie-provider
 eureka:
   client:
     service-url:
@@ -1309,6 +1309,66 @@ Hystrix Turbine 可以将每个服务的 Hystrix Dashboard 数据进行整合。
 
 ## 搭建
 
+1. 新建模块 `spring-cloud.s8.primary-turbine`
+2. 在 pom 中添加依赖 
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-turbine</artifactId>
+    </dependency>
+  </dependencies>
+```
+
+3. 创建启动类 `..TurbineApplication`
+```
+/*
+@EnableTurbine 开启 Turbine 功能
+ */
+@SpringBootApplication
+@EnableTurbine
+public class TurbineApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(TurbineApplication.class, args);
+  }
+}
+```
+4. 创建配置文件 
+
+bootstrap.yml
+```
+server:
+  port: 39002
+spring:
+  application:
+    name: turbine
+  profiles:
+    active: dev
+```
+
+application-dev.yml
+```
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+turbine:
+  app-config: movie-provider #, another-provider  用逗号分隔需要监控的服务
+  aggregator:
+    clusterConfig: default
+  clusterNameExpression: new String("default")
+  instanceUrlSuffix:
+    default: actuator/hystrix.stream
+  combine-host-port: true
+```
+
+> 这里通过配置文件，让 `turbine` 监控了一众服务，当然，这里只有 `movie-provider` ，读者可以自己创建其他的服务，最简单的方法是拷贝 `movie-provider` 然后只需要改掉它的 `spring.application.name` 即可快速搭建出另外一个服务。
+
+5. 访问 `Dashboard` `http://localhost:37001/actuator/hystrix.stream` 让他监控 `Turbine` `http://localhost:39002/turbine.stream` 即可。
 
 
+# 十一、结语
 
+至此，我个人认为的 spring cloud 入门部分已经完结了。
+
+其实还有诸如 `认证` `网关` 类的功能没有包含在入门部分，这是因为会给入门部分的环境搭建、访问制造很多麻烦，就省略了。

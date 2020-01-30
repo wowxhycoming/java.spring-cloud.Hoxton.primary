@@ -1,8 +1,8 @@
 server:
-  port: 37001 # 服务端口
+  port: 37001
 spring:
   application:
-    name: movie-provider-hystrix # 应用名称
+    name: movie-provider
 eureka:
   instance:
     instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}

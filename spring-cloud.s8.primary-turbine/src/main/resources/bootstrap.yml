@@ -1,0 +1,7 @@
+server:
+  port: 39002
+spring:
+  application:
+    name: turbine
+  profiles:
+    active: dev
