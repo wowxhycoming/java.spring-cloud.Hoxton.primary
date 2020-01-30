@@ -42,7 +42,7 @@
     <module>spring-cloud.s3.movie-consumer-ribbon</module>
     <module>spring-cloud.s4.movie-consumer-feign</module>
     <module>spring-cloud.s5.movie-consumer-hystrix</module>
-    <!--<module>spring-cloud.s6.hystrix-dashboard</module>-->
+    <module>spring-cloud.s6.movie-provider-hystrix</module>
   </modules>
 
   <build>
@@ -104,7 +104,6 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
-
 
     </plugins>
   </build>

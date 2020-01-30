@@ -1,0 +1,16 @@
+server:
+  port: 37001 # 服务端口
+spring:
+  application:
+    name: movie-provider-hystrix # 应用名称
+eureka:
+  instance:
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+info:
+  app.name: movie-provider
+  compony.name: me.xhy
+  build.artifactId: $project.artifactId$
+  build.modelVersion: $project.modelVersion$
