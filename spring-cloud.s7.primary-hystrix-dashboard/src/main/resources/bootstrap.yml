@@ -1,0 +1,11 @@
+server:
+  port: 39001
+spring:
+  application:
+    name: hystrix-dashboard
+  profiles:
+    active: dev
+eureka:
+  instance:
+    hostname: localhost
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}

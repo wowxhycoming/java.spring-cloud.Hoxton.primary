@@ -43,6 +43,7 @@
     <module>spring-cloud.s4.movie-consumer-feign</module>
     <module>spring-cloud.s5.movie-consumer-hystrix</module>
     <module>spring-cloud.s6.movie-provider-hystrix</module>
+    <module>spring-cloud.s7.primary-hystrix-dashboard</module>
   </modules>
 
   <build>

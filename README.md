@@ -17,6 +17,8 @@
 ```
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <java.version>1.8</java.version>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
   </properties>
@@ -33,7 +35,7 @@ Supported Boot Version: 2.2.1.RELEASE
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>2.2.1.RELEASE</version>
+    <version>2.2.4.RELEASE</version>
     <relativePath/>
   </parent>
   
@@ -46,8 +48,11 @@ Supported Boot Version: 2.2.1.RELEASE
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+    </dependencies>
   </dependencyManagement>
 ```
+
+> at 2020.01.29: spring boot 解决了 2.2.3 的大部分问题，但是升级到 2.2.3 收，会导致 pigx-gateway 网关不能启动。将版本升级至 2.2.4 可解决目前已知问题。
 
 > maven 与 java 在继承方面的定义一样，都是单继承。单独使用 spring-boot 时候，可以使用 parent 标签继承 spring-boot 的 pom 文件，但是想继承多个 pom 是不可能的。 <scope>import</scope> 用于解决这个问题。
 
@@ -72,7 +77,7 @@ Supported Boot Version: 2.2.1.RELEASE
   </dependencies>
 ```
 
-3. 创建启动类 `me.xhy.java.springcloud.s1.eureka.EurekaServer`
+3. 创建启动类 `me.xhy.java.springcloud.s1.eureka.EurekaServerApplication`
 
 ```
 /*
@@ -119,7 +124,7 @@ spring:
 
 运行 EurekaServerApplication 的 main 函数。  
 
-此时会报错，先忽略。可以从控制台启动日志看到，tomcat 被启动了，端口是配置文件指定的 32001 。 
+此时会报错，先忽略。可以从控制台启动日志看到，tomcat 被启动了，端口是配置文件指定的 35001 。 
 
 6. 访问
 
@@ -157,7 +162,7 @@ Eureka server 从每个 client 实例接收心跳消息。
 这里是 eureka-client，不再是 server。  
 引入了 web 功能，因为基于 spring cloud 的微服务就是建立在 http 协议上的。
 
-3. 创建启动类，并声明是 eureka client
+3. 创建启动类 `MovieProviderApplication`，并声明是 eureka client
 ```
 /*
 @EnableEurekaClient 表明是 eureka client 
@@ -198,6 +203,8 @@ info:
 > eureka.instance.instance-id 的设置是让 "Status" 出可以正常显示
 > eureka.instance.prefer-ip-address 的设置是让 "Status" 的链接已真实IP显示，而不是 localhost 
 
+> 另外，spring.application.name 也是服务名称，可能很多节点的服务名相同，相同的服务名也将用于负载均衡。eureka.instance.instance-id 用来区分相同服务下不同的节点。
+
 5. 启动 provider 
 
 运行 MovieProviderApplication 的 main 函数。
@@ -206,23 +213,27 @@ info:
 
 (1). 关于： EMERGENCY! EUREKA MAY BE INCORRECTLY CLAIMING INSTANCES ARE UP WHEN THEY'RE NOT. RENEWALS ARE LESSER THAN THRESHOLD AND HENCE THE INSTANCES ARE NOT BEING EXPIRED JUST TO BE SAFE.  
 
-这是因为Eureka进入了自我保护机制，默认情况下，如果EurekaServer在一定时间内没有接收到某个微服务实例的心跳时，EurekaServer将会注销该实例（默认90s）。
-但是当网络发生故障时，微服务与EurekaServer之间无法通信，这样就会很危险了，因为微服务本身是很健康的，
-此时就不应该注销这个微服务，而Eureka通过自我保护机制来预防这种情况，当网络健康后，该EurekaServer节点就会自动退出自我保护模式；
-说白一点：当 eureka 以为服务掉线的时候，不会立刻下线改服务，仍然会在服务列表中保留该服务，直到90还没有心跳发生，再移除。
+> 下面这段文字中的 *微服务实例* 是指注册到 eureka server 的 eureka client，他可能是provider 、consumer 或 eureka server 自己。
+
+这是因为 EurekaServer 进入了自我保护机制，默认情况下，如果 EurekaServer 在一定时间内没有接收到某个微服务实例的心跳时，EurekaServer 将会注销该实例（默认90s）。
+但是当网络发生故障时，微服务实例与 EurekaServer 之间无法通信，这样就会很危险了，因为微服务本身是很健康的，
+此时就不应该注销这个微服务实例，而 EurekaServer 通过自我保护机制来预防这种情况，当网络健康后，该 EurekaServer 节点就会自动退出自我保护模式；
+说白一点：当 eurekaServer 以为服务掉线的时候，不会立刻下线该服务，仍然会在服务列表中保留该服务，直到90还没有心跳发生，再移除。
+
+最近15分钟心跳续约的比例是否低于了85%，也会触发自我保护。
 
 这时再次将客户端微服务启动，刷新服务注册中心会发现，自我保护状态已取消。
 
-综上所述，我们可以看出来Eureka的两个组件EurekaServer和EurekaClient的作用：
+综上所述，我们可以看出来 Eureka 的两个组件 EurekaServer 和 EurekaClient 的作用：
 
-- EurekaServer 提供服务发现的能力，各个微服务启动时，会向EurekaServer注册自己的信息（例如：ip、端口、微服务名称等），EurekaServer会存储这些信息；
-- EurekaClient是一个Java客户端，用于简化与EurekaServer的交互；
-- 微服务启动后，会定期性（默认30s）的向EurekaServer发送心跳以续约自己的“租期”；
-- 如果EurekaServer在一定时间内未接收某个微服务实例的心跳，EurekaServer将会注销该实例（默认90s）；
-- 默认情况下，EurekaServer同时也是EurekaClient。多个EurekaServer实例，互相之间通过复制的方式，来实现服务注册表中数据的同步；
-- EurekaClient也会缓存服务注册表中的信息；
+- EurekaServer 提供服务发现的能力，各个微服务实例启动时，会向 EurekaServer 注册自己的信息（例如：ip、端口、微服务名称等），EurekaServer 会存储这些信息；
+- EurekaClient 用于简化与 EurekaServer 的交互；
+- 微服务实例启动后，会定期性（默认30s）的向 EurekaServer 发送心跳以续约自己的“租期”；
+- 如果 EurekaServer 在一定时间内未接收某个微服务实例的心跳，EurekaServer 将会注销该微服务实例（默认90s）；
+- 默认情况下，EurekaServer 同时也是 EurekaClient。多个 EurekaServer 实例，互相之间通过复制的方式，来实现服务注册表中数据的同步；
+- EurekaClient 也会缓存服务注册表中的信息；
 
-综上，Eureka通过心跳检查、客户端缓存等机制，提高了系统的灵活性、可伸缩性和可用性，所以作为一个微服务架构，需要一个服务注册中心来统筹管理服务；
+综上，Eureka 组件通过心跳检查、客户端缓存等机制，提高了系统的灵活性、可伸缩性和可用性，所以作为一个微服务架构，需要一个服务注册中心来统筹管理服务；
 
 (2). 在 "Instances currently registered with Eureka" 区域可以显示注册上来的服务了。
 
@@ -248,7 +259,7 @@ info:
   build.modelVersion: $project.modelVersion$
 ```
 
-此处的 `$` 暂时无法识别，会被当成普通字符串处理，添加一个 maven 插件来处理
+此处的  $  暂时无法识别，会被当成普通字符串处理，添加一个 maven 插件来处理
 
 3. 修改根项目 pom 文件，添加插件
 ```
@@ -287,7 +298,7 @@ info:
 
 重新运行，再访问。
 
-> 访问 http://ip:37001/actuator/info 会提示下载文件，因为返回的是个流，用 google 浏览器可以适配。
+> 访问 http://ip:37001/actuator/info 会提示下载文件，因为返回的是个流，用 google 浏览器可以适配。也可以将该文件下载后，用文本编辑器打开，显示的内容是有一样的。
 
 ## 服务提供者还没有实质性的服务，添加一个
 
@@ -468,10 +479,12 @@ public class MovieRibbonController {
     |- application.yml  
     |- xxx-application.jar
 
-3. 有限加载名称为 bootstrap 配置文件，其次加载名称为 application 的配置文件。
+3. 优先加载名称为 bootstrap 配置文件，其次加载名称为 application 的配置文件。
 
 - bootstrap.yml
 - application.yml
+
+> bootstrap 是 spring cloud 的配置文件， application 是 spring boot 的配置文件。
 
 4. 优先加载带 [-profile] 的配置文件
 
@@ -639,7 +652,7 @@ java -jar spring-cloud.s1.eureka-server-1.0-SNAPSHOT.jar --spring.profiles.activ
 
 4. 启动验证一下
 
-> 大多数开发场景下， eureka 都使用单点方式启动。下面不特殊说明的，都是使用单点启动。
+> 大多数开发场景下，如果不是开发调试测试 eureka server，使用单点方式启动就足够了。下面不特殊说明的，都是使用单点启动 eureka server。
 
 ## Provider 的高可用
 
@@ -729,10 +742,92 @@ public class MovieController {
 - WeightedResponseTimeRule  
 “权重响应时间”策略。根据每个provider的平均响应时间计算其权重，响应时间越快权重越大，被选中的机率就越高。在刚启动时采用轮询策略。后面就会根据权重进行选择
 
-## Ribbon 负载均衡策略的修改
+## Ribbon *全局* 负载均衡策略的修改
 
-## Ribbon 负载均衡策略的范围
+1. 在 spring component scan 可以到达的地方声明负载均衡策略，这里定义在启动类 `MovieConsumerRibbonApplication` 中
+```
+  @Bean
+  public IRule ribbonRule() {
+    return new
+        RandomRule() // 随机分配
+        /*RoundRobinRule(); // 轮询*/
+        /*RetryRule(); // 重试*/
+        /*BestAvailableRule() // 最低并发*/
+        /*AvailabilityFilteringRule() // 可用过滤*/
+        /*ResponseTimeWeightedRule() // 响应时间加权*/
+        /*ZoneAvoidanceRule() // 区域权衡*/
+        ;
+  }
+```
 
+2. 访问 `http://localhost:33001/consumer/ribbon/movie/movies` 查看效果。现在，全局的策略已经被修改成随机分配了。
+
+>  这种方法设置的是全局 ribbon 负载均衡策略，一处设置、到处生效。
+
+## Ribbon 基于注解的 *局部* 策略配置
+
+上面可以看到，只要 spring 扫描到了 IRule 类型的对象，就会被应用的全局，下面要说一下 自定义局部策略
+
+
+1. 先创建一个注解，用于标记 class ，告诉 spring ，带有此标记的 class 不要托管
+```
+public @interface IgnoreScan {
+}
+```
+
+2. 创建自定义负载均衡策略类，并标记上 @IgnoreScan 
+```
+@IgnoreScan
+public class RibbonPartialStrategyConfig {
+  @Bean
+  public IRule ribbonRule() {
+    return new RoundRobinRule(); // 轮训
+  }
+}
+```
+spring 将不会托管该类，该类就不会出现在容器中，也就不会对全局策略有影响。到这里可以先启动项目测试一下。
+
+> 默认是 轮询 -> 在启动类中 ribbonRule 又更改成了 随机 -> 现在定义了局部策略 轮询
+
+3. 改造启动类 `MovieConsumerRibbonApplication` ， 只能两个注解
+
+```
+/*
+@ComponentScan 应用 IgnoreScan ， 排除我们定义的局部负载均衡策略
+@RibbonClient 针对 client 指定负载均衡策略。 name 是请求服务的 instance 名，configuration 是该客户端应用各种策略
+ */
+@SpringBootApplication
+@EnableEurekaClient
+@EnableDiscoveryClient
+@ComponentScan(excludeFilters = @ComponentScan.Filter(type = FilterType.ANNOTATION, value = IgnoreScan.class))
+@RibbonClient(name = "movie-provider", configuration = RibbonPartialStrategyConfig.class)
+public class MovieConsumerRibbonApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(MovieConsumerRibbonApplication.class, args);
+  }
+
+  @Bean
+  @LoadBalanced
+  RestTemplate restTemplate() {
+    return new RestTemplate();
+  }
+
+  @Bean
+  public IRule ribbonRule() {
+    return new
+        RandomRule() // 随机分配
+        //RoundRobinRule(); // 轮询
+        //RetryRule(); // 重试
+        //BestAvailableRule() // 最低并发
+        //AvailabilityFilteringRule() // 可用过滤
+        //ResponseTimeWeightedRule() // 响应时间加权
+        //ZoneAvoidanceRule() // 区域权衡
+        ;
+  }
+}
+```
+
+启动项目，测试效果。 又回归轮训
 
 # 八、Feign
 
@@ -847,6 +942,11 @@ http://localhost:33002/consumer/feign/movie/movies
 ```
 依然支持负载均衡。
 
+> Feign 使用 Ribbon 做负载，所以，在负载均衡策略上的套路是相同的。
+
+## 压缩传输数据
+
+
 
 # 九、Hystrix 熔断器
 
@@ -854,7 +954,7 @@ http://localhost:33002/consumer/feign/movie/movies
 
 由于 Provider 可能出现宕机或网络不可达等原因，造成服务不可用，那么调用这个故障服务的线程就会被阻塞，若访问量很大，会导致请求网络资源的线程耗尽（HttpClient 线程池、 Servlet 容器等），出现这种情况，故障就发生了传播，会引发连锁反应，造成系统大面积崩溃。熔断器就是为了解决这类问题的。
 
-## Ribbon + RestTemplate 的 Hystrix 使用
+## 消费者 Ribbon + RestTemplate 的 Hystrix 使用
 
 1. 创建模块 `spring-cloud.s5.movie-consumer-hystrix`
 2. pom 文件引入
@@ -920,8 +1020,7 @@ public class MovieConsumerHystrixApplication {
 
 该点重新上线，又会恢复到负载均衡列表中。
 
-
-## Feign 的 Hystrix 使用
+## 消费者 Feign 的 Hystrix 使用
 
 1. 配置文件：
 
@@ -933,7 +1032,7 @@ feign:
     enabled: true
 ```
 
-2. 在配置类补充一个注解
+2. 在启动类补充一个注解
 
 ```
 @EnableFeignClients // Feign 需要
@@ -955,7 +1054,7 @@ public interface MovieHystrixFeignService {
 }
 
 /*
-该类提供资源部可达时的补偿方法
+该类提供资源不可达时的补偿方法
 必须要有 @Component ， 可以是外部类
  */
 @Component
@@ -986,45 +1085,229 @@ public class MovieHystrixFeignController {
 
 5. 访问 `http://localhost:33003/consumer/hystrix/feign/movie/movies` ，然后关闭一个 provider 测试熔断效果。
 
+## 提供者的服务降级
+
+Hystrix 也可以用于 provider，来提供服务降级。当某个方法抛出异常，将会调用指定的降级方法。
 
 
+1. 创建模块 `spring-cloud.s6.movie-provider-hystrix`
+
+2. 添加依赖
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+    </dependency>
+  </dependencies>
+```
+
+3. 配置文件
+
+```
+server:
+  port: 37001 # 服务端口
+spring:
+  application:
+    name: movie-provider-hystrix # 应用名称
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:35001/eureka
+  instance:
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+info:
+  app.name: movie-provider
+  compony.name: me.xhy
+  build.artifactId: $project.artifactId$
+  build.modelVersion: $project.modelVersion$
+```
+
+4. 启动类 `MovieProviderHystrixApplication`
+
+```
+@SpringBootApplication
+@EnableEurekaClient
+@EnableCircuitBreaker
+public class MovieProviderHystrixApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(MovieProviderHystrixApplication.class, args);
+  }
+
+  @Bean
+  public ServletRegistrationBean getServlet(){
+    HystrixMetricsStreamServlet streamServlet = new HystrixMetricsStreamServlet();    //监控实例
+    ServletRegistrationBean registrationBean = new ServletRegistrationBean(streamServlet);    //servlet注册接口
+    registrationBean.setLoadOnStartup(1);
+    registrationBean.addUrlMappings("/actuator/hystrix.stream");   //路径
+    registrationBean.setName("HystrixMetricsStreamServlet");
+    return registrationBean;
+  }
+}
+```
+
+5. 程序入口，添加一个 controller
+```
+@RestController
+@RequestMapping("movie")
+public class MovieController {
+
+  @Autowired
+  ServerPortConfiguration serverPortConfiguration;
+
+  @RequestMapping("movies")
+  @HystrixCommand(fallbackMethod = "getMoviesFallback")
+  public String getMovies() {
+    if(new Random().nextInt(10) / 2 == 0) {
+      throw new RuntimeException("2");
+    }
+    return "movies" + serverPortConfiguration.getPort();
+  }
+
+  public String getMoviesFallback() {
+    return "服务降级 " + serverPortConfiguration.getPort();
+  }
+}
+```
+
+6. `ServerPortConfiguration` 照 s2 拷贝。
+
+7. 访问 `http://localhost:37001/actuator/hystrix.stream` 可以看到不停刷新的 `ping`
+
+8. 访问标注了 `@HystrixCommand` 的方法，也就是 `http://localhost:37001/movie/movies` ，再回头看 `http://localhost:37001/actuator/hystrix.stream` 的内容，有 `data` 和 `ping` 一同刷新。
+
+> 在目前的版本环境下，只有访问标注了 `@HystrixCommand` 的方法才会刷新 data，刷新 data 是以后监控的重要步骤。
+
+# 十、dashboard 监控 
+
+## 关于 dashboard
+
+前面提过一次 `actuator` ，这个组件是监控功能的基础。监控依靠 actuator 的心跳。
+
+单一 Hystrix Dashboard 页面只能监控一个 @HystrixCommand 。后面会对 Dashboard 进行聚合。
 
 
+*Hystrix Dashboard 只监控 @HystrixCommand ，只要想对服务进行监控，就必须加 @HystrixCommand，没有降级方法也要加*
 
 
+## 部署 dashborad
+
+1. 创建模块 `spring-cloud.s7.primary-hystrix-dashboard` ， 此处的 `primary` 为初级的意思，意为整个项目是初级项目，这里不再以功能名 `movie` 命名监控模块，监控是面对整个项目而不是单一功能模块的。
+
+2. POM 添加依赖
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-hystrix-dashboard</artifactId>
+    </dependency>
+  </dependencies>
+```
+
+3. 配置文件
+
+bootstrap.yml
+```
+server:
+  port: 39001
+spring:
+  application:
+    name: hystrix-dashboard
+  profiles:
+    active: dev
+eureka:
+  instance:
+    hostname: localhost
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+```
+
+application-dev.yml
+```
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+```
+application-test.yml
+```
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/,http://localhost:35002/eureka/,http://localhost:35003/eureka/
+```
 
 
+4. 启动类 `..HystrixDashboardApplication`
+
+```
+@SpringBootApplication
+@EnableHystrixDashboard
+public class HystrixDashboardApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(HystrixDashboardApplication.class, args);
+  }
+}
+```
+
+5. 访问 `http://localhost:39001/hystrix`
+
+> 如果不指定 eureka-server 地址，会连接 eureka 的默认地址，导致报错
 
 
+## 整合应用 监控
+
+1. 一个新的 provider 
+- 已经在 `九、Hystrix 熔断器.提供者的服务降级` 章节中，创建了一个应用 Hystrix 实现了可服务降级的 provider 。并且也应用了 `37001` 端口，以后就默认启动这个 provider 了。
+- 访问 `http://localhost:37001/actuator/hystrix.stream` 可以看到刷新的 `ping` 信息。
+- 访问他提供的 HTTP 服务 `http://localhost:37001/movie/movies` , 以为这个服务被标记了 `@HystrixCommand` ，所以这时回到前一步的页面 `http://localhost:37001/actuator/hystrix.stream` 页面，可以看到刷新信息中增加了 `data` 。
+
+2. 应用 dashboard
+- 访问刚搭建的监控页面 `http://localhost:39001/hystrix` 
+- 按照提示，在第一个输入框输入 `一个服务的监控路径`+`.stream`，输入 `http://localhost:37001/actuator/hystrix.stream` ， 提交后可看到简单的曲线。此时还无数据。
+- 继续访问 provider `http://localhost:37001/movie/movies` ，由于该项目中加入了随机失败代码，曲线会有波动。
 
 
+> 曲线旁配有数字，数字的颜色各异，每种颜色数值代表的意义参考页面上部右侧。鼠标悬浮在数字上也会有提示。
 
 
+十一、范围更广的监控工具 turbine
 
+## 关于 turbine
 
+Hystrix Turbine 可以将每个服务的 Hystrix Dashboard 数据进行整合。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+## 搭建
 
 
 
