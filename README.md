@@ -52,7 +52,7 @@ Supported Boot Version: 2.2.1.RELEASE
   </dependencyManagement>
 ```
 
-> at 2020.01.29: spring boot 解决了 2.2.3 的大部分问题，但是升级到 2.2.3 收，会导致 pigx-gateway 网关不能启动。将版本升级至 2.2.4 可解决目前已知问题。
+> at 2020.01.29: spring boot 解决了 2.2.3 的大部分问题，但是升级到 2.2.3 后，也是翻车连连。将版本升级至 2.2.4 可解决目前已知问题。
 
 > maven 与 java 在继承方面的定义一样，都是单继承。单独使用 spring-boot 时候，可以使用 parent 标签继承 spring-boot 的 pom 文件，但是想继承多个 pom 是不可能的。 <scope>import</scope> 用于解决这个问题。
 
@@ -120,6 +120,14 @@ spring:
 
 通过 `eureka.client.registerWithEureka`: false 不向服务中心注册 和 `eureka.client.fetchRegistry`: false 不获取服务列表，来表明自己是一个 eureka server.
 
+> 关于 yml 文件，他对格式的要求非常严格：
+>1. 缩进标准必须一致  
+>2. 缩进层级必须依次递增  
+>3. 缩进必须对齐  
+>4. `:` 后必须有空格  
+>5. value 再长也不能回行  
+> 有个高帛童鞋就不遵守规则，踩了坑。 
+
 5. 启动工程
 
 运行 EurekaServerApplication 的 main 函数。  
@@ -171,7 +179,7 @@ Eureka server 从每个 client 实例接收心跳消息。
 @EnableEurekaClient
 public class MovieProviderApplication {
   public static void main(String[] args) {
-    SpringApplication.run(MovieProviderApplication.class);
+    SpringApplication.run(MovieProviderApplication.class, args);
   }
 }
 ```
@@ -729,10 +737,14 @@ public class MovieController {
 选择并发量最小的provider，即连接的消费者数量最少的provider
 
 - AvailabilityFilteringRule  
-过滤掉处于断路器跳闸状态的provider，或已经超过连接极限的provider，对剩余provider采用轮询策略。
+过滤掉处于断路器跳闸状态的provider，或已经超过连接极限的provider，对剩余provider采用轮询策略。  
+
+
 （1）在默认情况下，这台服务器如果3次连接失败，这台服务器就会被设置为“短路”状态。短路状态将持续30秒，如果再次连接失败，短路的持续时间就会几何级地增加。
 
+
 注意：可以通过修改配置loadbalancer.<clientName>.connectionFailureCountThreshold来修改连接失败多少次之后被设置为短路状态。默认是3次。
+
 
 （2）并发数过高的服务器。如果一个服务器的并发连接数过高，配置了AvailabilityFilteringRule规则的客户端也会将其忽略。并发连接数的上线，可以由客户端的<clientName>.<clientConfigNameSpace>.ActiveConnectionsLimit属性进行配置。
 
@@ -789,12 +801,12 @@ spring 将不会托管该类，该类就不会出现在容器中，也就不会�
 
 > 默认是 轮询 -> 在启动类中 ribbonRule 又更改成了 随机 -> 现在定义了局部策略 轮询
 
-3. 改造启动类 `MovieConsumerRibbonApplication` ， 只能两个注解
+3. 改造启动类 `MovieConsumerRibbonApplication` ， 增加两个注解
 
 ```
 /*
 @ComponentScan 应用 IgnoreScan ， 排除我们定义的局部负载均衡策略
-@RibbonClient 针对 client 指定负载均衡策略。 name 是请求服务的 instance 名，configuration 是该客户端应用各种策略
+@RibbonClient 针对 client 指定负载均衡策略。 name 是请求服务提供方的 ${spring.application.name}  ，configuration 是该客户端应用各种策略
  */
 @SpringBootApplication
 @EnableEurekaClient
@@ -1367,8 +1379,317 @@ turbine:
 5. 访问 `Dashboard` `http://localhost:37001/actuator/hystrix.stream` 让他监控 `Turbine` `http://localhost:39002/turbine.stream` 即可。
 
 
-# 十一、结语
+# 十二、zuul 第一代网关
 
-至此，我个人认为的 spring cloud 入门部分已经完结了。
+入门篇后，来到初级篇。恐怕篇幅太长。
 
-其实还有诸如 `认证` `网关` 类的功能没有包含在入门部分，这是因为会给入门部分的环境搭建、访问制造很多麻烦，就省略了。
+## 关于 zuul
+
+robbin 的负载均衡策略是通过服务名，在客户端实现负载均衡，由 consumer 直接通过 ip:port 调用 provider 。 
+
+通过 zuul 调用服务，consumer 将不再直接调用 provider ，而是通过 zuul 代理。
+
+## 搭建
+
+1. 创建模块 `spring-cloud.s9.primary-zuul`
+2. 修改 `pom` 添加依赖
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-zuul</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+  </dependencies>
+```
+
+3. 创建启动类 ``
+```
+/*
+@EnableZuulProxy 开启 zuul
+ */
+@SpringBootApplication
+@EnableZuulProxy
+public class ZuulApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(ZuulApplication.class, args);
+  }
+}
+```
+4. 创建配置文件 `application.yml`
+
+```
+server:
+  port: 32001
+spring:
+  application:
+    name: primary-zuul
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+```
+
+5. 启动网关，同时还需要启动 eureka server 和 一个 provider 。
+6. 通过网关访问的格式为 ： `网关ip:网关port/应用名/资源路径` ，那通过网关37001端口的 provider 的地址为 `http://localhost:32001/movie-provider/movie/movies` 
+> 这里注意，*服务名* *大小写敏感*
+
+> 到此，配置文件中没有任何关于 zuul 的配置信息。在通过 zuul 调用 provider 时，也必须知道 provider 在 eureka server 中注册的服务名。如果只想暴露网关给 consumer 就需要配置路由表来解决。
+
+## 添加路由表
+
+1. 修改配置文件 `application.yml` ， 添加 zuul 路由表信息
+```
+zuul:
+  routes:
+    movie-provider: /movie-proxy/**
+```
+
+这里，把服务名 `movie-provider` 作为 `routes` 的子属性key，他的 `value` 为代理后的路径。
+
+> 注意：这里的服务名，都是注册到 eureka server 中的服务名。
+
+2. 访问代理后的地址 `http://localhost:32001/movie-proxy/movie/movies`
+
+> 此时，添加路由表之前的链接 `http://localhost:32001/movie-provider/movie/movies` 依然可以访问。
+
+## 通过路由表屏蔽原服务名
+
+1. 修改配置文件 `application.yml` ， 修改 zuul 路由表信息， 增加 `ignored-services`
+```
+zuul:
+  routes:
+    movie-provider: /movie-proxy/**
+  ignored-services: movie-provider
+```
+2. 通配符
+
+目前项目距中只有一个服务，这样通过字面量来屏蔽是可行的，线上系统服务繁多，每个都写一遍是不现实的
+
+```
+zuul:
+  routes:
+    movie-provider: /movie-proxy/**
+  ignored-services: "*"
+```
+
+这样，eureka server 中的所有服务都不能访问了。再尝试通过服务名访问 `http://localhost:32001/movie-provider/movie/movies` ，页面将现实报错信息。
+
+## 另外一种更美观的配置格式
+
+还是将关心的值都写在 value 处更好一些，但这个方式要自定义 `逻辑名` 
+
+```
+#zuul:
+#  routes:
+#    movie-provider: /movie-proxy/**
+#  ignored-services: movie-provider
+zuul:
+  ignored-services: "*"
+  routes:
+    movie-proxy1: # 逻辑名
+      path: /movie-proxy1/** # 访问到 zuul 的地址如果是这个，就把 `**` 交给下面 service 处理
+      serviceId: movie-provider # eureka server 中的服务名
+    movie-proxy2:
+      path: /movie-proxy2/**
+      url: http://localhost:37001/ # 交给固定的 rul 来处理
+```
+
+分别访问 `http://localhost:32001/movie-proxy1/movie/movies` 和  `http://localhost:32001/movie-proxy2/movie/movies` 看看效果
+
+## 不止是路由
+
+zuul 不只是路由，还能做安全验证；如果某个后端服务自身有安全认证，还可以代为认证。这些都是过滤器做的。
+
+## 为了演示 zuul 的其他功能，再新增一个 provider 
+
+根据 `Spring Cloud 之一 入门篇.九、Hystrix 熔断器.消费者 Feign 的 Hystrix 使用` 的 `spring-cloud.s6.movie-provider-hystrix` 再创建一个类似的项目 `spring-cloud.s10.book-provider-hystrix` 。端口改成了 `37004` ， controller 里的 `movie` 改成 `book` 。
+
+## zuul 该怎么用呢
+
+前面说过 Ribbon 和 Feign ，都是通过注册中心获取服务列表，然后在本地进行客户端侧的负载均衡。在 zuul 出现后，调用服务要通过 zuul 了。 使用 Feign 时，要针对每个服务都创建一个客户端 `@FeignClient` ， 使用 zuul 后，只需要持有一个 zuul 客户端即可。 zuul 的高可用，原理同 provider 角色一样， 其实 zuul 就是 provider 角色。
+
+1. 创建一个新的 provider 项目 `spring-cloud.s10.book-provider-hystrix` ，这个项目可以照着 `spring-cloud.s6.movie-provider-hystrix` 创建，把里面的所有 `movie` 改成 `book` 即可 。
+
+## 再次改造 zuul 项目，使其代理新的提供者
+
+修改配置文件，增加对 `book` 的代理
+
+```
+zuul:
+  ignored-services: "*"
+  routes:
+    movie-proxy1: # 逻辑名
+      path: /movie-proxy1/** # 访问到 zuul 的地址如果是这个，就把 `**` 交给下面 service 处理
+      serviceId: movie-provider # eureka server 中的服务名
+    movie-proxy2:
+      path: /movie-proxy2/**
+      url: http://localhost:37001/ # `**` 交给固定的 rul 来处理
+    book-proxy:
+      path: /book-proxy/**
+      url: book-provider
+```
+
+## 面向 zuul 的消费者
+
+1. 新建项目 `spring-cloud.s11.primary-consumer-oriented-zuul`
+2. 添加依赖，修改 `pom` 文件
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-openfeign</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+  </dependencies>
+```
+3. 创建启动类 `PrimaryConsumerOrientedZuul`
+```
+@SpringBootApplication
+@EnableEurekaClient
+@EnableFeignClients
+@EnableHystrix
+public class PrimaryConsumerOrientedZuul {
+  public static void main(String[] args) {
+    SpringApplication.run(PrimaryConsumerOrientedZuul.class, args);
+  }
+}
+```
+
+4. 创建应用 Feign 发起请求的的接口 `PrimaryHystrixOrientedZuulService`
+```
+/*
+访问 movie 和 book 两个服务，这里只需要一个 Feign 客户端
+ */
+@FeignClient(name = "primary-zuul")
+public interface PrimaryHystrixOrientedZuulService {
+
+  @RequestMapping("/movie-proxy1/movie/movies")
+  String getMovies();
+
+  @RequestMapping("/book-proxy/book/books")
+  String getBooks();
+}
+```
+
+5. 创建入口 `PrimaryConsumerController`
+```
+@RestController
+@RequestMapping("primary")
+public class PrimaryConsumerController {
+
+  @Autowired
+  PrimaryHystrixOrientedZuulService service;
+
+  @RequestMapping("allStuff")
+  public String getAllStuff() {
+    return service.getMovies() + " | " +service.getBooks();
+  }
+}
+```
+6. 启动项目，访问 `http://localhost:33004/primary/allStuff` 查看结果。在这之前，要先保证至少启动了一个 eureka server；启动了3个 movie-provider-hystrix 和 3个 book-provider-hystrix 。
+
+## zuul 提供熔断
+
+zuul 是个代理服务，当被代理服务出现异常，将会报错。应该对这里的报错进行处理。
+
+1. 在 zuul 项目中，创建一个补偿操作， 新建 `StuffFallbackProvider implements FallbackProvider` 
+```
+@Component
+public class StuffFallbackProvider implements FallbackProvider {
+
+  /*
+  该方法用于匹配路由，匹配的是 zuul 代理的服务，就是配置文件里路由表里 serviceId: 后面的值。
+  "*" 表示匹配任何路由
+  "movie-provider" 就只匹配一个服务了
+   */
+  @Override
+  public String getRoute() {
+    return "*";
+  }
+
+  @Override
+  public ClientHttpResponse fallbackResponse(String route, Throwable cause) {
+    return new ClientHttpResponse() {
+
+      /*
+      响应头
+       */
+      @Override
+      public HttpHeaders getHeaders() {
+        HttpHeaders httpHeaders = new HttpHeaders();
+        httpHeaders.set("Content-Type", "text/html; charset=UTF-8");
+        return httpHeaders;
+      }
+
+      /*
+      响应体
+       */
+      @Override
+      public InputStream getBody() throws IOException {
+        return new ByteArrayInputStream("服务不可用".getBytes());
+      }
+
+      @Override
+      public HttpStatus getStatusCode() throws IOException {
+        return HttpStatus.BAD_REQUEST;
+      }
+
+      @Override
+      public int getRawStatusCode() throws IOException {
+        return HttpStatus.BAD_REQUEST.value();
+      }
+
+      @Override
+      public String getStatusText() throws IOException {
+        return HttpStatus.BAD_REQUEST.getReasonPhrase();
+      }
+
+      @Override
+      public void close() {
+
+      }
+    };
+  }
+}
+```
+
+2. 重启 zuul 项目，访问 zuul 地址查看效果 `http://localhost:32001/book-proxy/book/books` ，刷新这个请求，期间停掉一个 book-provider 。
+
+# 十三、配置中心
+
+## 关于 Spring Cloud Config
+
+
+
+
+# 十四、
+
+# 十五、
+
+
+
+
+

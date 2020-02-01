@@ -45,6 +45,9 @@
     <module>spring-cloud.s6.movie-provider-hystrix</module>
     <module>spring-cloud.s7.primary-hystrix-dashboard</module>
     <module>spring-cloud.s8.primary-turbine</module>
+    <module>spring-cloud.s9.primary-zuul</module>
+    <module>spring-cloud.s10.book-provider-hystrix</module>
+    <module>spring-cloud.s11.primary-consumer-oriented-zuul</module>
   </modules>
 
   <build>
@@ -84,7 +87,7 @@
                   <includes>
                     <!--<exclude>*.properties</exclude>
                     <exclude>*.yml</exclude>-->
-                    <exclude>*.bat</exclude>
+                    <include>*.bat</include>
                   </includes>
                 </resource>
               </resources>

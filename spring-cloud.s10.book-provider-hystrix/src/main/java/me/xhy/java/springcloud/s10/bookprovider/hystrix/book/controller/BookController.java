@@ -1,7 +1,7 @@
-package me.xhy.java.springcloud.s6.provider.hystrix.movie.controller;
+package me.xhy.java.springcloud.s10.bookprovider.hystrix.book.controller;
 
 import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
-import me.xhy.java.springcloud.s6.provider.hystrix.config.ServerPortConfiguration;
+import me.xhy.java.springcloud.s10.bookprovider.hystrix.config.ServerPortConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -9,22 +9,22 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Random;
 
 @RestController
-@RequestMapping("movie")
-public class MovieController {
+@RequestMapping("book")
+public class BookController {
 
   @Autowired
   ServerPortConfiguration serverPortConfiguration;
 
-  @RequestMapping("movies")
-  @HystrixCommand(fallbackMethod = "getMoviesFallback")
+  @RequestMapping("books")
+  @HystrixCommand(fallbackMethod = "getBooksFallback")
   public String getMovies() {
     if(new Random().nextInt(10) / 2 == 0) {
       throw new RuntimeException("2");
     }
-    return "movies" + serverPortConfiguration.getPort();
+    return "books" + serverPortConfiguration.getPort();
   }
 
-  public String getMoviesFallback() {
-    return "movies 服务降级 " + serverPortConfiguration.getPort();
+  public String getBooksFallback() {
+    return "books 服务降级 " + serverPortConfiguration.getPort();
   }
 }

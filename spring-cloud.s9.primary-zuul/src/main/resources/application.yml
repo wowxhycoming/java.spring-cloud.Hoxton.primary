@@ -1,0 +1,30 @@
+server:
+  port: 32001
+spring:
+  application:
+    name: primary-zuul
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+  instance:
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+#zuul:
+#  routes:
+#    movie-provider: /movie-proxy/**
+#  ignored-services: movie-provider
+zuul:
+  ignored-services: "*"
+  routes:
+    movie-proxy1: # 逻辑名
+      path: /movie-proxy1/** # 访问到 zuul 的地址如果是这个，就把 `**` 交给下面 service 处理
+      serviceId: movie-provider # eureka server 中的服务名
+    movie-proxy2:
+      path: /movie-proxy2/**
+      url: http://localhost:37001/ # `**` 交给固定的 rul 来处理
+    book-proxy:
+      path: /book-proxy/**
+      url: book-provider

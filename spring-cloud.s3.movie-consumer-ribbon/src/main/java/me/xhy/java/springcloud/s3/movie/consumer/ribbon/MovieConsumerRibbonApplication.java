@@ -16,7 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 /*
 @ComponentScan 应用 IgnoreScan ， 排除我们定义的局部负载均衡策略
-@RibbonClient 针对 client 指定负载均衡策略。 name 是请求服务提供方 instance 名，configuration 是该客户端应用各种策略
+@RibbonClient 针对 client 指定负载均衡策略。 name 是请求服务提供方的 ${spring.application.name} ，configuration 是该客户端应用各种策略
  */
 @SpringBootApplication
 @EnableEurekaClient

@@ -8,7 +8,7 @@ eureka:
     service-url:
       defaultZone: http://localhost:35001/eureka
   instance:
-    instance-id: ${spring.cloud.client.ip-address}:${server.port}/${spring.application.name} # 代表了一个启动示例的标识，自定义，可以显示在控制台上，
+    instance-id: ${spring.cloud.client.ip-address}:${server.port} # 代表了一个启动示例的标识，自定义，可以显示在控制台上，
     prefer-ip-address: true # 调用服务的时候使用 IP 优先，而不是使用域名。鼠标放到应用列表的实例上，状态类中的地址信息指定为 ip。
     lease-renewal-interval-in-seconds: 30 # 表示 eureka client 发送心跳给server端的频率。这个值决定了服务注册的快慢，太快消耗资源。默认30秒。
     lease-expiration-duration-in-seconds: 90 # 表示 eureka server 至上一次收到 client 的心跳之后，等待下一次心跳的超时时间，在这个时间内若没收到下一次心跳，则将移除该 instance。默认90秒

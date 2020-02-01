@@ -1,8 +1,8 @@
 server:
-  port: 37001
+  port: 37004
 spring:
   application:
-    name: movie-provider
+    name: book-provider
 eureka:
   instance:
     instance-id: ${spring.cloud.client.ip-address}:${server.port}
