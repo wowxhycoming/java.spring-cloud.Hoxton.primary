@@ -1,0 +1,20 @@
+server:
+  port: 32002
+spring:
+  application:
+    name: primary-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true # 与服务注册和发现组件进行结合，通过 serviceId 转发到具体的服务实例。默认为 false，设为 true 开启通过注册中心自动根据 serviceId 创建路由的功能。
+          lowerCaseServiceId: true # 使注册中心服务名 通过小写访问
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:35001/eureka/
+  instance:
+    instance-id: ${spring.cloud.client.ip-address}:${server.port}
+logging:
+  level:
+    org.springframework.cloud.gateway: debug

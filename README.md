@@ -1678,18 +1678,96 @@ public class StuffFallbackProvider implements FallbackProvider {
 
 2. 重启 zuul 项目，访问 zuul 地址查看效果 `http://localhost:32001/book-proxy/book/books` ，刷新这个请求，期间停掉一个 book-provider 。
 
+# 十二、gateway 第二代网关
+
+## 关于
+1. Zuul 是 Netflix 开源的一个项目
+2. Gateway 是 Spring Cloud 的一个子项目
+3. Gateway 的 RPS 是 Zuul1.x 的 1.6 倍
+
+## 搭建
+
+1. 创建模块 `spring-cloud.s12.primary-gateway`
+2. 在 pom 中添加依赖
+```
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-gateway</artifactId>
+    </dependency>
+  </dependencies>
+```
+3. 新建主类 `..GatewayApplication`
+```
+@SpringBootApplication
+public class GatewayApplication {
+  public static void main(String[] args) {
+    SpringApplication.run(GatewayApplication.class, args);
+  }
+}
+```
+
+4. 创建配置文件 `application-dev1.yml`
+```
+server:
+  port: 32002
+spring:
+  application:
+    name: primary-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: gateway-service # 这个路由的id
+          uri: https://spring.io # 跳转到哪里去
+          predicates:
+            - Path=/projects/spring-cloud # 谓词断言，当访问路径是 /projects/spring-cloud 时，把这个路径接到 uri 后面
+```
+
+5. 创建 `bootstrap.yml`
+```
+spring:
+  profiles:
+    active: dev1
+```
+
+6. 启动主类，访问 `http://localhost:32002/projects/spring-cloud`，地址栏不变，但是页面显示内容已经变成 spring cloud 官网 `https://spring.io/projects/spring-cloud/` 的内容了。（当然，有些资源是加载不到的）
+
+其实怎么跳转到 eureka server 中注册的服务去，才是正经操作。
+
+> 现在是通过配置文件的方式，指定了代理规则。也可以用代码实现。
+
+## 代理服务
+
+在实际工作中，服务的互相调用都是通过注册中心的。注册中心的服务通常会很多，如果逐一配置无疑是让人崩溃的。还要 Spring Cloud Gateway 解决了这个麻烦，只要将 Spring Cloud Gateway 注册到注册中心，Spring Cloud Gateway  默认就会代理注册中心的所有服务。
+
+1. 修改 pom 添加依赖
+```
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+    </dependency>
+```
+2. 使用老办法 `http://<gateway地址>:<gateway端口>/<注册中心${spring.application.name}>/<uri>`， 那么访问 `http://localhost:32002/MOVIE-PROVIDER/movie/movies` 查看效果。如果启动了多个 provider 的话，自带负载均衡效果。
+
+> 注意：这里的 ${spring.application.name} 大小写敏感，访问你的注册中心获取服务名。
+
+3. 让服务名变成小写，修改配置文件，添加 `spring.cloud.gateway.discovery.locator.lowerCaseServiceId=true`
+
+```
+spring:
+  application:
+    name: primary-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true # 与服务注册和发现组件进行结合，通过 serviceId 转发到具体的服务实例。默认为 false，设为 true 开启通过注册中心自动根据 serviceId 创建路由的功能。
+          lowerCaseServiceId: true # 使注册中心服务名 通过小写访问
+```
+
+> 注意： ${spring.application.name} 仍然大小写敏感
+
 # 十三、配置中心
 
 ## 关于 Spring Cloud Config
-
-
-
-
-# 十四、
-
-# 十五、
-
-
-
-
 

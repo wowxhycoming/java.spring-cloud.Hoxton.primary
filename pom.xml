@@ -48,6 +48,7 @@
     <module>spring-cloud.s9.primary-zuul</module>
     <module>spring-cloud.s10.book-provider-hystrix</module>
     <module>spring-cloud.s11.primary-consumer-oriented-zuul</module>
+    <module>spring-cloud.s12.primary-gateway</module>
   </modules>
 
   <build>

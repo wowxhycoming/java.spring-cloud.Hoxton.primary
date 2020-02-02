@@ -1,0 +1,12 @@
+server:
+  port: 32002
+spring:
+  application:
+    name: primary-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: gateway-service # 这个路由的id
+          uri: https://spring.io # 跳转到哪里去
+          predicates:
+            - Path=/projects/spring-cloud # 谓词断言，当访问路径是 /projects/spring-cloud 时，把这个路径接到 uri 后面
