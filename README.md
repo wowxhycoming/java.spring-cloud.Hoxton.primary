@@ -1766,8 +1766,3 @@ spring:
 ```
 
 > 注意： ${spring.application.name} 仍然大小写敏感
-
-# 十三、配置中心
-
-## 关于 Spring Cloud Config
-
